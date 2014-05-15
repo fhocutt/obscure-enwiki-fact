@@ -9,13 +9,14 @@
 import requests
 import random
 import twitter
+import string
 
 from twitterapi import api                     #TODO: fuss with folders etc.
 
 
 
 # User-agent string for API neighborliness
-headers =  {'User-Agent': 'obscure-fact project (https://github.com/brainwane/), using Python requests library'}
+headers =  {'User-Agent': 'obscure-fact project (https://github.com/fhocutt/), using Python requests library'}
     
 ##############
 # wikipedia
@@ -25,10 +26,7 @@ def wikipediarecentchange():
 # ignoring bot and minor edits. Returns the tuple (title, pagetext).
 
 # returns json-formatted text of page among other things
-    URI = 'http://en.wikipedia.org/w/api.php?action=query&\
-           generator=recentchanges&grcshow=!bot|!minor&grcprop=title|ids&\
-           grcnamespace=0&grclimit=1&prop=extracts&format=json&explaintext=\
-           &redirects=&indexpageids'
+    URI = 'http://en.wikipedia.org/w/api.php?action=query&generator=recentchanges&grcshow=!bot|!minor&grcprop=title|ids&grcnamespace=0&grclimit=1&prop=extracts&format=json&explaintext=&redirects=&indexpageids'
     r = requests.get(URI, headers=headers)
     
     rtext = r.json()
@@ -54,15 +52,12 @@ def wikivoyagerecentchange():
 # ignoring bot and minor edits. Returns the tuple (title, pagetext).
 # TODO: only the URI differs from wikipediarecentchange(), could refactor
 
-    URI = 'http://en.wikivoyage.org/w/api.php?action=query&generator=\
-           recentchanges&grcshow=!bot|!minor&grcprop=title|ids&grcnamespace=0\
-           &grclimit=1&prop=extracts&format=json&explaintext=&redirects=&\
-           indexpageids'
+    URI = 'http://en.wikivoyage.org/w/api.php?action=query&generator=recentchanges&grcshow=!bot|!minor&grcprop=title|ids&grcnamespace=0&grclimit=1&prop=extracts&format=json&explaintext=&redirects=&indexpageids'
     
     r = requests.get(URI, headers=headers)
-    
+
     rtext = r.json()
-    
+
     pageid = rtext["query"]["pageids"][0]
     
     title = rtext["query"]["pages"][pageid]["title"]
@@ -83,16 +78,13 @@ def wikibooksrecentchange():
 
     #API call returns a list of the 100 most-recently-edited wikibooks pages 
 
-    URI = 'http://en.wikibooks.org/w/api.php?action=query&list=recentchanges&\
-           format=json&rcnamespace=0&rcprop=title&rcshow=!minor|!bot|!redirect\
-           &rclimit=100&rctype=edit|new&rctoponly=&indexpageids='
+    URI = 'http://en.wikibooks.org/w/api.php?action=query&list=recentchanges&format=json&rcnamespace=0&rcprop=title&rcshow=!minor|!bot|!redirect&rclimit=100&rctype=edit|new&rctoponly=&indexpageids='
     r = requests.get(URI, headers=headers)
-    
     rtext = r.json()
 
     #gets the title of a random page of the 100 returned, for more randomness
-    title = rtext["query"]["pages"][randint(0, 99)]["title"]
-    titleparts = title.split[/]
+    title = rtext["query"]["recentchanges"][random.randint(0, 99)]["title"]
+    titleparts = title.split("/")
     book = titleparts[0]
     chapter = titleparts[len(titleparts)-1]
     return (book, chapter)
@@ -102,7 +94,7 @@ def wikibooksrecentchange():
 # wikisource
 
 
-def wikisourcerandom():
+#def wikisourcerandom():
 
 
 # Finds the title and page of a random wikiquote page.
@@ -132,33 +124,30 @@ def choosesite():
 
     # which site do we query?
     site = raw_input("Would you like information from Wikipedia, Wikivoyage, \
-                     or Wikibooks? ") #could insert these from a separate list 
-                                      #for easier maintenance
-    site = site.lower #handling case
-    site = site.strip #removing whitespace
+or Wikibooks? ") #could insert these from a separate list for easier maintenance
+    site = string.lower(site) #handling case
+    site = string.strip(site) #removing whitespace
 
-    if site = "wikipedia":
-
+    if site == "wikipedia":
         recentchange = wikipediarecentchange()
         sentence = findobscuresentence(recentchange[1])
 
-        return (recentchange[0], sentence) # title, extracted sentence
+        return ("WP", recentchange[0], sentence) # title, extracted sentence
 
-    elif site = "wikivoyage":
-        
+    elif site == "wikivoyage":        
         recentchange = wikivoyagerecentchange()
         sentence = findobscuresentence(recentchange[1])
 
-        return (recentchange[0], sentence)   # title, extracted sentence     
+        return ("WV", recentchange[0], sentence)   # title, extracted sentence
 
-    elif site = "wikibooks":
-
-        return wikibooksrecentchange()
+    elif site == "wikibooks":
+	recentchange = wikibooksrecentchange()
+        return ("WB", recentchange[0], recentchange[1])
 
     else:  #re-prompt
-        print "Please enter one of the options in the list or hit ctrl+C to \
-               end this program. \n"
+        print "Please enter one of the options in the list or hit ctrl+C to end this program. \n"
         choosesite()
+
 
 ##def tweetedsite():                               #TODO: write code for this
 ### takes in the content of a tweet to @autowiki, returns wikisource/wikibooks/etc
@@ -168,6 +157,7 @@ def choosesite():
 ##    etc. 
 ##    else tweet out "@[user], please ask for one of these: ..."
 ##            #see if I need anything else
+
 
 def findobscuresentence(pagetext): # expects Wikipedia-style plaintext
 # Returns the first sentence of the longest section's final paragraph
@@ -189,34 +179,26 @@ def findobscuresentence(pagetext): # expects Wikipedia-style plaintext
 ##    return sentence
 
 
-
-
-def tweetsentence(topic, sentence):
+def tweetsentence(site, topic, sentence):
     if topic is sentence: #possible in wikibooks (when no subsections)
         info = topic      #only tweet the title once
-
     else:
-        info = topic + ": " + sentence + "."
-
+        info = "(" +site + ") " + topic + ": " + sentence + "."
 
     if len(info) > 140:   #stay inside twitter's character limit
         tweet = (info[:139]) 
-
     else:
         tweet = info
         
     api.PostUpdate(tweet)
 
 
-
 #Get the user to choose a site to tweet out, tweet the result, and print it 
 #to the command line for immediate gratification/debugging.
 def run():
-
-    result = choosesite()
-#    tweetsentence(result)
-    print result[0] + ": " + result[1] + "."
-
+    site, topic, sentence = choosesite()
+    tweetsentence(site, topic, sentence)
+    print "(" + site + ") " + topic + ": " + sentence + "."
 
 
 if __name__ == "__main__":
